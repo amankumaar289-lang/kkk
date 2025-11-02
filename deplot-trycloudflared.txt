@@ -1,0 +1,490 @@
+Склонируй себе репозиторий: https://disk.360.yandex.ru/d/bmvA2CqkGRR_yA
+
+
+set -euo pipefail
+
+# 1) Входные данные
+SHARE_URL="https://disk.360.yandex.ru/d/bmvA2CqkGRR_yA
+
+
+"
+OUT_DIR="/project/workspace/import_yadisk"
+API_URL="https://cloud-api.yandex.net/v1/disk/public/resources/download"
+
+# 2) Подготовка
+mkdir -p "$OUT_DIR"
+cd "$OUT_DIR"
+
+# 3) Получить прямую ссылку (href) через API
+JSON=$(curl -sG --data-urlencode "public_key=$SHARE_URL" "$API_URL")
+HREF=$(printf "%s" "$JSON" | sed -n 's/.*"href":"\([^"]*\)".*/\1/p')
+[ -n "$HREF" ] || { echo "Failed to resolve direct download URL"; exit 2; }
+DL_URL=$(printf "%s" "$HREF" | sed 's#\\/#/#g')
+
+# 4) Скачать ZIP (даст «странное» имя из HTTP заголовков)
+curl -fL -OJ "$DL_URL"
+
+# 5) Переименовать в стандартное имя
+F=$(ls -1t | head -n1)
+mv -f "$F" download.zip
+
+# 6) Распаковать (bsdtar лучше справляется с длинными и UTF‑8 именами)
+rm -rf extracted && mkdir extracted
+if command -v bsdtar >/dev/null 2>&1; then
+  LANG=C.UTF-8 bsdtar -xf download.zip -C extracted
+else
+  unzip -q -o download.zip -d extracted || { echo "Install bsdtar (libarchive)"; exit 3; }
+fi
+
+# 7) Быстрая проверка результата
+ls -la extracted | head -n 50
+echo "Готово. Путь: $OUT_DIR/extracted"
+
+
+
+
+
++++
+
+🚀 ДЕПЛОЙ НА TRYCLOUDFLARE.COM - ПОШАГОВАЯ ИНСТРУКЦИЯ
+
+📋 ЧТО НУЖНО:
+
+
+
+
+
+Supabase Database Password: NeuroMag_1_1
+
+
+
+Brave API Keys (уже в проекте)
+
+
+
+OpenRouter API Key (уже в проекте)
+
+
+
+Linux/Mac с установленным Node.js 18+ или Bun
+
+
+
+🎯 БЫСТРЫЙ СТАРТ (КОПИПАСТА)
+
+# ШАГ 1: Перейди в папку проекта
+cd PRMachine-4
+
+# ШАГ 2: Установи зависимости
+npm install
+# или если есть bun:
+# bun install
+
+# ШАГ 3: Проверь что .env существует и заполнен
+cat .env
+
+# Если .env пустой или нет, создай его:
+cat > .env << 'EOF'
+# Supabase Configuration
+SUPABASE_URL=https://nldzwfopogknvjjhtuns.supabase.co
+SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5sZHp3Zm9wb2drbnZqamh0dW5zIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE5NjA2MTksImV4cCI6MjA3NzUzNjYxOX0.Mb1CnnUMFTGFIhYM9UcIdFa6yCG2THp9l2nQQTnnvtw
+
+# Database Connection String - POOLER (работает через IPv4)
+DATABASE_URL=postgresql://postgres:NeuroMag_1_1@aws-0-eu-central-1.pooler.supabase.com:6543/postgres
+
+# Brave Search API
+BRAVE_API_KEY_1=BSAiH1vhLfsKM_unpLEPqIulBOwnDgt
+BRAVE_API_KEY_2=BSA-qCbl-osY1wjC2lW4PsIjx0Qt1IN
+BRAVE_API_KEY_3=BSArBFB2NMjeC8WUZ_Mlif9CwSyjw_2
+BRAVE_API_KEY_4=BSArBFB2NMjeC8WUZ_Mlif9CwSyjw_2
+
+# OpenRouter API
+OPENROUTER_API_KEY=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
+
+# Session
+SESSION_SECRET=auto-generated-secret-change-in-production
+EOF
+
+# ШАГ 4: Примени миграции БД (создание таблиц)
+npm run db:push
+# Если ошибка - пропусти, таблицы создадутся автоматически при первом запросе
+
+# ШАГ 5: Запусти сервер (в фоне)
+chmod +x start-with-env.sh
+./start-with-env.sh &
+
+# Подожди 5 секунд
+sleep 5
+
+# Проверь что сервер работает
+curl http://localhost:5000/
+
+# ШАГ 6: Скачай cloudflared
+wget https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -O cloudflared
+chmod +x cloudflared
+
+# ШАГ 7: Запусти туннель
+./cloudflared tunnel --url http://localhost:5000
+
+
+После команды в шаге 7 увидишь:
+
++--------------------------------------------------------------------------------------------+
+|  Your quick Tunnel has been created! Visit it at (it may take some time to be reachable):  |
+|  https://ТВОЯ-СЛУЧАЙНАЯ-ССЫЛКА.trycloudflare.com                                           |
++--------------------------------------------------------------------------------------------+
+
+
+ЭТО ТВОЯ ПУБЛИЧНАЯ ССЫЛКА! ОТКРЫВАЙ В БРАУЗЕРЕ!
+
+
+
+🔧 ШАГ ЗА ШАГОМ (ПОДРОБНО)
+
+1️⃣ ПОДГОТОВКА ОКРУЖЕНИЯ
+
+# Убедись что ты в правильной папке
+pwd
+# Должно быть что-то вроде: /путь/к/PRMachine-4
+
+# Проверь что есть package.json
+ls -la package.json
+
+# Проверь версию Node.js (нужна 18+)
+node -v
+
+
+
+
+2️⃣ УСТАНОВКА ЗАВИСИМОСТЕЙ
+
+# Установи все пакеты
+npm install
+
+# Установи postgres.js если его нет
+npm install postgres drizzle-orm
+
+# Проверь что всё установилось
+ls -la node_modules | wc -l
+# Должно быть больше 100 папок
+
+
+
+
+3️⃣ НАСТРОЙКА .env
+
+ВАЖНО: DATABASE_URL должен использовать pooler (aws-0-eu-central-1.pooler.supabase.com:6543), а НЕ прямое подключение (db.*.supabase.co:5432), иначе будет ошибка IPv6!
+
+# Создай или обнови .env файл
+nano .env
+
+
+Вставь ТОЧНО это содержимое:
+
+# Supabase Configuration
+SUPABASE_URL=https://nldzwfopogknvjjhtuns.supabase.co
+SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5sZHp3Zm9wb2drbnZqamh0dW5zIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE5NjA2MTksImV4cCI6MjA3NzUzNjYxOX0.Mb1CnnUMFTGFIhYM9UcIdFa6yCG2THp9l2nQQTnnvtw
+
+# Database - POOLER CONNECTION (IPv4 only!)
+DATABASE_URL=postgresql://postgres:NeuroMag_1_1@aws-0-eu-central-1.pooler.supabase.com:6543/postgres
+
+# Brave Search API (4 ключа для ротации)
+BRAVE_API_KEY_1=BSAiH1vhLfsKM_unpLEPqIulBOwnDgt
+BRAVE_API_KEY_2=BSA-qCbl-osY1wjC2lW4PsIjx0Qt1IN
+BRAVE_API_KEY_3=BSArBFB2NMjeC8WUZ_Mlif9CwSyjw_2
+BRAVE_API_KEY_4=BSArBFB2NMjeC8WUZ_Mlif9CwSyjw_2
+
+# OpenRouter API
+OPENROUTER_API_KEY=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
+
+# Session
+SESSION_SECRET=auto-generated-secret-change-in-production
+
+
+Сохрани: Ctrl+O, Enter, Ctrl+X
+
+
+
+4️⃣ БАЗА ДАННЫХ
+
+# Примени миграции (создай таблицы в Supabase)
+npm run db:push
+
+# Если ошибка "ENETUNREACH" или "SSL" - игнорируй, 
+# таблицы создадутся при первом API запросе
+
+
+
+
+5️⃣ ЗАПУСК СЕРВЕРА
+
+# Сделай скрипт исполняемым
+chmod +x start-with-env.sh
+
+# Запусти сервер в фоне
+./start-with-env.sh > server.log 2>&1 &
+
+# Сохрани PID
+echo $! > server.pid
+
+# Подожди 5 секунд
+sleep 5
+
+# Проверь логи
+tail -20 server.log
+
+# Должно быть:
+# "serving on port 5000"
+
+# Тест API
+curl http://localhost:5000/api/metrics
+# Если ошибка БД - норм, главное что сервер отвечает
+
+
+
+
+6️⃣ CLOUDFLARED TUNNEL
+
+# Скачай cloudflared
+wget https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -O cloudflared
+
+# Сделай исполняемым
+chmod +x cloudflared
+
+# Запусти туннель (НЕ В ФОНЕ!)
+./cloudflared tunnel --url http://localhost:5000
+
+
+ВАЖНО: НЕ закрывай терминал! Туннель должен работать постоянно.
+
+Увидишь примерно такое:
+
+2025-11-02T07:00:00Z INF +--------------------------------------------------------------------------------------------+
+2025-11-02T07:00:00Z INF |  Your quick Tunnel has been created! Visit it at (it may take some time to be reachable):  |
+2025-11-02T07:00:00Z INF |  https://random-words-name.trycloudflare.com                                               |
+2025-11-02T07:00:00Z INF +--------------------------------------------------------------------------------------------+
+
+
+КОПИРУЙ ССЫЛКУ И ОТКРЫВАЙ В БРАУЗЕРЕ!
+
+
+
+✅ ПРОВЕРКА РАБОТЫ
+
+# В другом терминале:
+
+# 1. Главная страница (Frontend)
+curl https://ТВОЯ-ССЫЛКА.trycloudflare.com/
+
+# 2. API метрики
+curl https://ТВОЯ-ССЫЛКА.trycloudflare.com/api/metrics
+
+# 3. Арсенал
+curl https://ТВОЯ-ССЫЛКА.trycloudflare.com/api/arsenal
+
+
+
+
+🐛 ТИПИЧНЫЕ ОШИБКИ И РЕШЕНИЯ
+
+❌ "DATABASE_URL is required"
+
+Причина: .env не загрузился
+
+Решение:
+
+# Используй start-with-env.sh вместо npm run dev
+./start-with-env.sh
+
+
+❌ "ENETUNREACH 2a05:..." (IPv6 error)
+
+Причина: Пытаешься подключиться к db.*.supabase.co:5432 (IPv6)
+
+Решение: Используй pooler в DATABASE_URL:
+
+# ПРАВИЛЬНО (pooler, port 6543):
+DATABASE_URL=postgresql://postgres:NeuroMag_1_1@aws-0-eu-central-1.pooler.supabase.com:6543/postgres
+
+# НЕПРАВИЛЬНО (прямое подключение, port 5432):
+DATABASE_URL=postgresql://postgres:NeuroMag_1_1@db.nldzwfopogknvjjhtuns.supabase.co:5432/postgres
+
+
+❌ "Tenant or user not found"
+
+Причина: Неправильный формат username
+
+Решение: Используй postgres (БЕЗ project ID):
+
+# ПРАВИЛЬНО:
+postgresql://postgres:NeuroMag_1_1@...
+
+# НЕПРАВИЛЬНО:
+postgresql://postgres.nldzwfopogknvjjhtuns:NeuroMag_1_1@...
+
+
+❌ "502 Bad Gateway" в браузере
+
+Причина: Сервер не запустился
+
+Решение:
+
+# Проверь логи
+tail -50 server.log
+
+# Перезапусти сервер
+pkill -f "tsx server"
+./start-with-env.sh > server.log 2>&1 &
+
+
+❌ Cloudflared не скачивается
+
+Решение:
+
+# Попробуй с curl
+curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -o cloudflared
+chmod +x cloudflared
+
+
+
+
+🔄 ОСТАНОВКА И ПЕРЕЗАПУСК
+
+# Останови всё
+pkill -f "tsx server"
+pkill -f cloudflared
+
+# Перезапусти сервер
+./start-with-env.sh > server.log 2>&1 &
+
+# Перезапусти туннель
+./cloudflared tunnel --url http://localhost:5000
+
+
+
+
+📦 АЛЬТЕРНАТИВА: АВТОМАТИЧЕСКИЙ СКРИПТ
+
+Создай файл deploy.sh:
+
+#!/bin/bash
+set -e
+
+echo "🚀 Деплой Vladyka Protocol на trycloudflare.com"
+echo "================================================"
+
+# 1. Установка зависимостей
+echo "📦 Установка зависимостей..."
+npm install
+
+# 2. Проверка .env
+if [ ! -f .env ]; then
+  echo "❌ .env файл не найден! Создай его сначала."
+  exit 1
+fi
+
+# 3. Остановка старых процессов
+echo "🛑 Остановка старых процессов..."
+pkill -f "tsx server" || true
+pkill -f cloudflared || true
+sleep 2
+
+# 4. Запуск сервера
+echo "🔧 Запуск сервера..."
+chmod +x start-with-env.sh
+./start-with-env.sh > server.log 2>&1 &
+SERVER_PID=$!
+echo "Server PID: $SERVER_PID"
+sleep 8
+
+# 5. Проверка сервера
+echo "✅ Проверка сервера..."
+if curl -s http://localhost:5000/ > /dev/null; then
+  echo "✅ Сервер работает!"
+else
+  echo "❌ Сервер не отвечает. Проверь server.log"
+  exit 1
+fi
+
+# 6. Скачивание cloudflared (если нужно)
+if [ ! -f cloudflared ]; then
+  echo "📥 Скачивание cloudflared..."
+  wget https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -O cloudflared
+  chmod +x cloudflared
+fi
+
+# 7. Запуск туннеля
+echo "🌐 Запуск Cloudflare Tunnel..."
+echo "⚠️  НЕ ЗАКРЫВАЙ ЭТО ОКНО!"
+echo "================================================"
+./cloudflared tunnel --url http://localhost:5000
+
+
+Использование:
+
+chmod +x deploy.sh
+./deploy.sh
+
+
+
+
+🎯 ФИНАЛЬНАЯ КОПИПАСТА (ВСЁ СРАЗУ)
+
+cd PRMachine-4 && \
+npm install && \
+cat > .env << 'EOF'
+SUPABASE_URL=https://nldzwfopogknvjjhtuns.supabase.co
+SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5sZHp3Zm9wb2drbnZqamh0dW5zIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE5NjA2MTksImV4cCI6MjA3NzUzNjYxOX0.Mb1CnnUMFTGFIhYM9UcIdFa6yCG2THp9l2nQQTnnvtw
+DATABASE_URL=postgresql://postgres:NeuroMag_1_1@aws-0-eu-central-1.pooler.supabase.com:6543/postgres
+BRAVE_API_KEY_1=BSAiH1vhLfsKM_unpLEPqIulBOwnDgt
+BRAVE_API_KEY_2=BSA-qCbl-osY1wjC2lW4PsIjx0Qt1IN
+BRAVE_API_KEY_3=BSArBFB2NMjeC8WUZ_Mlif9CwSyjw_2
+BRAVE_API_KEY_4=BSArBFB2NMjeC8WUZ_Mlif9CwSyjw_2
+OPENROUTER_API_KEY=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
+SESSION_SECRET=auto-generated-secret-change-in-production
+EOF
+chmod +x start-with-env.sh && \
+./start-with-env.sh > server.log 2>&1 & sleep 8 && \
+wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -O cloudflared && \
+chmod +x cloudflared && \
+echo "✅ ВСЁ ГОТОВО! ЗАПУСКАЮ ТУННЕЛЬ..." && \
+./cloudflared tunnel --url http://localhost:5000
+
+
+КОПИРУЙ ССЫЛКУ https://....trycloudflare.com И ОТКРЫВАЙ В БРАУЗЕРЕ!
+
+
+
+📞 ПОДДЕРЖКА
+
+Если что-то не работает:
+
+
+
+
+
+Проверь server.log: tail -50 server.log
+
+
+
+Проверь что сервер работает: curl http://localhost:5000/
+
+
+
+Проверь .env: cat .env | grep DATABASE_URL
+
+ВАЖНО: DATABASE_URL ОБЯЗАТЕЛЬНО должен содержать:
+
+
+
+
+
+aws-0-eu-central-1.pooler.supabase.com:6543 (pooler)
+
+
+
+postgres:NeuroMag_1_1 (username БЕЗ project ID)
+
+
+
+✅ ГОТОВО! СЛЕДУЙ ИНСТРУКЦИИ И БУДЕТ РАБОТАТЬ 100%! 🚀
